@@ -3,7 +3,7 @@ name: Sync Google Sheet to CSV
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/5 * * * *" # every 5 minutes
 
 permissions:
   contents: write
@@ -26,6 +26,7 @@ jobs:
           url="https://docs.google.com/spreadsheets/d/1NRrs9PXp_1XfSAx3bDxnpII0X_YMWHWBLEl5Kn_qTuM/export?format=csv&gid=0"
           dl="data/.download.csv"
 
+          # Download (if blocked/rate-limited/error, skip commit)
           if ! curl -L --fail --silent --show-error \
             --connect-timeout 10 --max-time 30 \
             "$url" -o "$dl"; then
@@ -37,23 +38,24 @@ jobs:
           echo "First 1 line:"
           head -n 1 "$dl" || true
 
+          # Skip empty file
           if [ ! -s "$dl" ]; then
             echo "Downloaded file is empty. Skip."
             exit 0
           fi
 
+          # If HTML/login/permission page returned, skip commit
           head_chunk="$(head -c 2048 "$dl" | tr '[:upper:]' '[:lower:]')"
           if echo "$head_chunk" | grep -qE '<!doctype html|<html|accounts\.google\.com|signin|permission|access denied'; then
             echo "Looks like HTML/blocked response. Skip."
             exit 0
           fi
 
+          # Ensure expected header exists to avoid committing wrong content
           first_line="$(head -n 1 "$dl")"
-          if ! echo "$first_line" | grep -q "商家名稱"; then
-            echo "Header mismatch. Skip."
-            exit 0
-          fi
+          echo "$first_line" | grep -q "商家名稱" || { echo "Header mismatch. Skip."; exit 0; }
 
+          # Normalize line endings to avoid false diffs
           python - << 'PY'
           from pathlib import Path
           p = Path("data/.download.csv")
@@ -67,16 +69,21 @@ jobs:
           echo "Preview:"
           head -n 3 data/sheet.csv || true
 
-      - name: Commit if changed
+      - name: Commit if changed (includes new files)
         shell: bash
         run: |
           set -euo pipefail
+
           if [ ! -f data/sheet.csv ]; then
             echo "data/sheet.csv not created. Nothing to commit."
             exit 0
           fi
 
-          if git diff --quiet; then
+          # Stage the file so new/untracked file is included in change detection
+          git add data/sheet.csv
+
+          # Now detect changes (staged or not)
+          if [ -z "$(git status --porcelain)" ]; then
             echo "No changes."
             exit 0
           fi
@@ -84,7 +91,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add data/sheet.csv
           git commit -m "chore: sync sheet.csv from Google Sheet"
           git push
           echo "Committed and pushed."
