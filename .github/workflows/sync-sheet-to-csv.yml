@@ -3,7 +3,7 @@ name: Sync Google Sheet to CSV
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/5 * * * *" # 每 5 分鐘
+    - cron: "*/5 * * * *" # every 5 minutes
 
 permissions:
   contents: write
@@ -12,51 +12,56 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Download CSV (skip commit if blocked)
         run: |
           set -euo pipefail
           mkdir -p data
-          tmp="$(mktemp)"
 
           url="https://docs.google.com/spreadsheets/d/1NRrs9PXp_1XfSAx3bDxnpII0X_YMWHWBLEl5Kn_qTuM/export?format=csv&gid=0"
+          dl="data/.download.csv"
 
-          # 下載（失敗就直接退出：不 commit）
+          # Download (if blocked/rate-limited/error, skip commit)
           if ! curl -L --fail --silent --show-error \
             --connect-timeout 10 --max-time 30 \
-            "$url" -o "$tmp"; then
+            "$url" -o "$dl"; then
             echo "Download failed (likely rate-limited/blocked). Skip commit."
             exit 0
           fi
 
-          # 基本檢查：空檔就跳過
-          if [ ! -s "$tmp" ]; then
+          # Skip empty file
+          if [ ! -s "$dl" ]; then
             echo "Downloaded file is empty. Skip commit."
             exit 0
           fi
 
-          # 被擋的常見型態：回傳 HTML（登入/權限/驗證頁）
-          # 取前 2KB 檢查是否含 html 特徵
-          head_chunk="$(head -c 2048 "$tmp" | tr '[:upper:]' '[:lower:]')"
-          if echo "$head_chunk" | grep -qE '<!doctype html|<html|accounts\.google\.com|signin|權限|permission|access denied'; then
+          # If HTML/login/permission page returned, skip commit
+          head_chunk="$(head -c 2048 "$dl" | tr '[:upper:]' '[:lower:]')"
+          if echo "$head_chunk" | grep -qE '<!doctype html|<html|accounts\.google\.com|signin|permission|access denied'; then
             echo "Looks like HTML/blocked response. Skip commit."
             exit 0
           fi
 
-          # 換行正規化，避免 CRLF 差異造成假變更
+          # (Optional but recommended) Ensure expected header exists to avoid committing wrong content
+          first_line="$(head -n 1 "$dl")"
+          echo "$first_line" | grep -q "商家名稱" || { echo "Header mismatch. Skip commit."; exit 0; }
+
+          # Normalize line endings to avoid false diffs
           python - << 'PY'
-          import pathlib
-          p = pathlib.Path("data/sheet.csv.tmp")
-          b = pathlib.Path("'"$tmp"'").read_bytes().replace(b"\r\n", b"\n")
+          from pathlib import Path
+          p = Path("data/.download.csv")
+          b = p.read_bytes().replace(b"\r\n", b"\n")
           p.write_bytes(b)
           PY
 
-          mv data/sheet.csv.tmp data/sheet.csv
+          mv "$dl" data/sheet.csv
 
       - name: Commit if changed
         run: |
           set -euo pipefail
+
           if git diff --quiet; then
             echo "No changes."
             exit 0
