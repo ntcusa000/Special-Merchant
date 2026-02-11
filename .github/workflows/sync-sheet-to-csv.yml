@@ -3,7 +3,7 @@ name: Sync Google Sheet to CSV
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/5 * * * *" # every 5 minutes
+    - cron: "*/5 * * * *"
 
 permissions:
   contents: write
@@ -16,39 +16,44 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download CSV (skip commit if blocked)
+        shell: bash
         run: |
           set -euo pipefail
+          echo "Start download..."
+
           mkdir -p data
 
           url="https://docs.google.com/spreadsheets/d/1NRrs9PXp_1XfSAx3bDxnpII0X_YMWHWBLEl5Kn_qTuM/export?format=csv&gid=0"
           dl="data/.download.csv"
 
-          # Download (if blocked/rate-limited/error, skip commit)
           if ! curl -L --fail --silent --show-error \
             --connect-timeout 10 --max-time 30 \
             "$url" -o "$dl"; then
-            echo "Download failed (likely rate-limited/blocked). Skip commit."
+            echo "Download failed (likely rate-limited/blocked). Skip."
             exit 0
           fi
 
-          # Skip empty file
+          echo "Downloaded bytes: $(wc -c < "$dl")"
+          echo "First 1 line:"
+          head -n 1 "$dl" || true
+
           if [ ! -s "$dl" ]; then
-            echo "Downloaded file is empty. Skip commit."
+            echo "Downloaded file is empty. Skip."
             exit 0
           fi
 
-          # If HTML/login/permission page returned, skip commit
           head_chunk="$(head -c 2048 "$dl" | tr '[:upper:]' '[:lower:]')"
           if echo "$head_chunk" | grep -qE '<!doctype html|<html|accounts\.google\.com|signin|permission|access denied'; then
-            echo "Looks like HTML/blocked response. Skip commit."
+            echo "Looks like HTML/blocked response. Skip."
             exit 0
           fi
 
-          # (Optional but recommended) Ensure expected header exists to avoid committing wrong content
           first_line="$(head -n 1 "$dl")"
-          echo "$first_line" | grep -q "商家名稱" || { echo "Header mismatch. Skip commit."; exit 0; }
+          if ! echo "$first_line" | grep -q "商家名稱"; then
+            echo "Header mismatch. Skip."
+            exit 0
+          fi
 
-          # Normalize line endings to avoid false diffs
           python - << 'PY'
           from pathlib import Path
           p = Path("data/.download.csv")
@@ -57,10 +62,19 @@ jobs:
           PY
 
           mv "$dl" data/sheet.csv
+          echo "Saved as data/sheet.csv"
+          ls -lah data
+          echo "Preview:"
+          head -n 3 data/sheet.csv || true
 
       - name: Commit if changed
+        shell: bash
         run: |
           set -euo pipefail
+          if [ ! -f data/sheet.csv ]; then
+            echo "data/sheet.csv not created. Nothing to commit."
+            exit 0
+          fi
 
           if git diff --quiet; then
             echo "No changes."
@@ -73,3 +87,4 @@ jobs:
           git add data/sheet.csv
           git commit -m "chore: sync sheet.csv from Google Sheet"
           git push
+          echo "Committed and pushed."
