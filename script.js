@@ -112,13 +112,14 @@ window.handleSheetData = function (data) {
         const cells = row.c;
         const getText = (idx) => (cells[idx] ? (cells[idx].f || cells[idx].v || '') : '');
         return {
-            name: getText(0),
-            deal: getText(1),
-            address: getText(2),
-            contact: getText(3),
-            category: getText(4) || '精選商家'
+            name: getText(0),         // 商家名稱
+            dealName: getText(1),     // 優惠名稱
+            dealContent: getText(2),  // 優惠內容
+            address: getText(3),      // 地址
+            contact: getText(4),      // 聯絡資訊
+            category: getText(5) || '精選商家'
         };
-    }).filter(p => p.name);
+    }).filter(p => p.name && p.name !== '商家名稱');
 
     renderCurrentPage();
     renderLatestPartners();
@@ -140,17 +141,19 @@ function renderCurrentPage() {
         card.setAttribute('onclick', `updateMap('${partner.address}')`);
         card.innerHTML = `
       <div class="ticket-header">
-        <div class="ticket-deal">${partner.deal.includes('折') ? partner.deal : '優惠'}</div>
-        <div class="ticket-deal-sub">${partner.deal.includes('折') ? '憑證享折扣' : partner.deal}</div>
+        <div class="ticket-deal">${partner.dealName}</div>
       </div>
       <div class="ticket-divider"></div>
       <div class="ticket-body">
         <div class="info-top">
           <div class="partner-name">${partner.name}</div>
-          <div class="partner-cat">${partner.category}</div>
+          <div class="partner-deal-content">${partner.dealContent}</div>
         </div>
-        <div class="partner-loc">📍 ${partner.address.substring(0, 8)}...</div>
-        <div class="ticket-hint">點擊查看地圖 〉</div>
+        <div class="partner-details">
+          <div class="partner-loc">📍 ${partner.address.substring(0, 10)}...</div>
+          <div class="partner-contact">📞 ${partner.contact}</div>
+        </div>
+        <div class="ticket-hint">查看地圖 〉</div>
       </div>
     `;
         grid.appendChild(card);
@@ -171,7 +174,7 @@ function renderLatestPartners() {
         li.className = 'latest-item';
         li.innerHTML = `
       <div class="item-badge">NEW</div>
-      <div class="item-content">${p.name} - ${p.deal}</div>
+      <div class="item-content">${p.name} - ${p.dealName}</div>
     `;
         list.appendChild(li);
     });
