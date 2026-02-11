@@ -1,9 +1,9 @@
-name: Sync images from sheet.csv
+name: Sync images from data/sheet.csv
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/5 * * * *" # 建議 10 分鐘；要 5 分鐘就改 */5
+    - cron: "*/10 * * * *" # 建議 10 分鐘；要 5 分鐘就改 */5
 
 permissions:
   contents: write
@@ -36,23 +36,22 @@ jobs:
             exit 0
           fi
 
-          mkdir -p assets/images
+          mkdir -p data/images
 
           cat > .github_sync_images.py << 'PY'
-          import csv, hashlib, json, os, re, sys, tempfile
+          import csv, hashlib, json, re, sys, tempfile
           from pathlib import Path
           import requests
 
           CSV_PATH = Path("data/sheet.csv")
-          OUT_DIR = Path("assets/images")
-          INDEX_JSON = OUT_DIR / "index.json"
-          MAPPING_CSV = OUT_DIR / "mapping.csv"
+          IMG_DIR = Path("data/images")
+          INDEX_JSON = IMG_DIR / "index.json"
+          MAPPING_CSV = Path("data/mapping.csv")
 
-          # 圖片網址欄位：若未來一格多張，這裡允許用逗號/分號/空白/換行分隔
+          # 一格多張圖片網址：支援逗號/分號/空白/換行分隔
           SPLIT_RE = re.compile(r"[,\n;\s]+")
 
-          # Google Drive share link patterns
-          # e.g. https://drive.google.com/file/d/<ID>/view?...
+          # Google Drive share link: https://drive.google.com/file/d/<ID>/view?...
           DRIVE_FILE_RE = re.compile(r"https?://drive\.google\.com/file/d/([a-zA-Z0-9_-]+)")
 
           def is_url(s: str) -> bool:
@@ -93,11 +92,10 @@ jobs:
 
           def download_image(original_url: str, tmpdir: Path) -> tuple[str, str, str]:
               """
-              return (original_url, final_url, filename) ; raise on failure
+              return (original_url, final_url, filename)
+              filename = sha256(original_url)[:32] + .ext
               """
               final_url = drive_direct_download(original_url)
-
-              # 用原始網址當 key（因為 CSV 是用它判定是否移除/替換）
               h = sha256_hex(original_url)[:32]
 
               headers = {"User-Agent": "github-actions-image-sync/1.0"}
@@ -109,11 +107,10 @@ jobs:
               filename = f"{h}.{ext}"
               out = tmpdir / filename
 
-              # 若回來不是 image/*，先落檔一小段檢查是否 HTML（Drive 常見）
+              # 防呆：不是 image/* 就拒絕，避免把 HTML 存進 repo
               if ct and not ct.lower().startswith("image/"):
-                  # 嘗試把前面內容寫入暫存以判斷
+                  # 寫一小段檢查是否 HTML（Drive 常見被導到權限/登入頁）
                   with out.open("wb") as f:
-                      # 先寫少量
                       for chunk in resp.iter_content(chunk_size=8192):
                           if chunk:
                               f.write(chunk)
@@ -123,7 +120,6 @@ jobs:
                       raise RuntimeError(f"Blocked/HTML response (content-type={ct}) for {original_url}")
                   raise RuntimeError(f"Non-image content-type={ct} for {original_url}")
 
-              # 正常圖片：完整寫檔
               with out.open("wb") as f:
                   for chunk in resp.iter_content(chunk_size=1024*128):
                       if chunk:
@@ -142,6 +138,7 @@ jobs:
                   reader = csv.DictReader(f)
                   if not reader.fieldnames:
                       return rows, urls
+
                   required = ["商家名稱", "優惠名稱", "優惠內容", "地址", "聯絡資訊", "圖片網址"]
                   missing = [c for c in required if c not in reader.fieldnames]
                   if missing:
@@ -155,7 +152,7 @@ jobs:
                       rows.append(row)
                       urls.extend(img_urls)
 
-              # 去重（保序）
+              # 去重保序
               seen = set()
               uniq = []
               for u in urls:
@@ -165,8 +162,6 @@ jobs:
               return rows, uniq
 
           def write_mapping_csv(mappings: list[dict]):
-              # mappings: list of dict with keys:
-              # 商家名稱, 優惠名稱, 圖片網址, 下載網址, 檔名
               with MAPPING_CSV.open("w", encoding="utf-8", newline="") as f:
                   w = csv.DictWriter(f, fieldnames=["商家名稱","優惠名稱","圖片網址","下載網址","檔名"])
                   w.writeheader()
@@ -177,15 +172,14 @@ jobs:
               rows, uniq_urls = collect_rows_and_urls()
               print(f"Found {len(uniq_urls)} unique image url(s).")
 
-              OUT_DIR.mkdir(parents=True, exist_ok=True)
+              IMG_DIR.mkdir(parents=True, exist_ok=True)
 
               desired_files: set[str] = set()
               url_to_file: dict[str, str] = {}
               url_to_download: dict[str, str] = {}
-
               mappings: list[dict] = []
 
-              # 先全部下載到 tmp；任何一個失敗就 abort（避免誤刪+半更新）
+              # 全部先下載到 tmp；任一失敗就 abort（避免誤刪+半更新）
               with tempfile.TemporaryDirectory() as td:
                   td_path = Path(td)
 
@@ -203,9 +197,9 @@ jobs:
 
                   # 套用（覆蓋/新增）
                   for fn in desired_files:
-                      (OUT_DIR / fn).write_bytes((td_path / fn).read_bytes())
+                      (IMG_DIR / fn).write_bytes((td_path / fn).read_bytes())
 
-              # 生成「逐列」mapping（保留商家/優惠資訊，方便你追）
+              # 逐列 mapping（保留商家/優惠資訊）
               for r in rows:
                   for u in r.get("_img_urls", []):
                       mappings.append({
@@ -216,24 +210,26 @@ jobs:
                           "檔名": url_to_file.get(u, ""),
                       })
 
-              # 刪除未被引用的舊檔（保留 index.json / mapping.csv）
-              keep = desired_files | {INDEX_JSON.name, MAPPING_CSV.name}
+              # 刪除未被引用的舊圖（保留 index.json）
+              keep = desired_files | {INDEX_JSON.name}
               removed = 0
-              for p in OUT_DIR.iterdir():
+              for p in IMG_DIR.iterdir():
                   if p.is_file() and p.name not in keep:
                       p.unlink()
                       removed += 1
 
-              # index.json：URL -> {file, download}
+              # index.json（URL -> {file, download}）
               index_obj = {
                   "generated_from": str(CSV_PATH),
                   "count": len(url_to_file),
-                  "items": {u: {"file": url_to_file[u], "download": url_to_download.get(u, drive_direct_download(u))}
-                            for u in url_to_file}
+                  "items": {
+                      u: {"file": url_to_file[u], "download": url_to_download.get(u, drive_direct_download(u))}
+                      for u in url_to_file
+                  }
               }
               INDEX_JSON.write_text(json.dumps(index_obj, ensure_ascii=False, indent=2), encoding="utf-8")
 
-              # mapping.csv：逐商家/逐優惠列出對照
+              # mapping.csv（逐商家/逐優惠列）
               write_mapping_csv(mappings)
 
               print(f"Done. Kept {len(desired_files)} image(s), removed {removed} old file(s).")
@@ -251,8 +247,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Stage new/deleted/modified files
-          git add -A assets/images
+          # Stage changes under data/ (mapping + images + index)
+          git add -A data/mapping.csv data/images
 
           if [ -z "$(git status --porcelain)" ]; then
             echo "No changes."
@@ -262,5 +258,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git commit -m "chore: sync images from sheet.csv"
+          git commit -m "chore: sync images + mapping from sheet.csv"
           git push
