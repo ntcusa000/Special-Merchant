@@ -3,37 +3,23 @@
  */
 
 // --- 1. 定義與設定 ---
-const SHEET_ID = '1NRrs9PXp_1XfSAx3bDxnpII0X_YMWHWBLEl5Kn_qTuM';
-const JSONP_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:handleSheetData`;
+// --- 1. 定義與設定 ---
+const CSV_URL = 'data/sheet.csv';
+const MAPPING_URL = 'data/mapping.csv';
+const IMAGE_BASE_PATH = 'data/images/';
 
-const HERO_DATA = [
-    {
-        image: 'https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=1600',
-        title: '專屬學生的優惠特約',
-        sub: '探索校園周邊精選合作店家，享受學生專屬折扣與好康'
-    },
-    {
-        image: 'https://images.unsplash.com/photo-1523050853064-8504f2f3905d?q=80&w=1600',
-        title: '吃喝玩樂 一網打盡',
-        sub: '從美食餐飲到休閒娛樂，學生會為您爭取最優質的店家合作'
-    },
-    {
-        image: 'https://images.unsplash.com/photo-1525921429624-479b6a29d81d?q=80&w=1600',
-        title: '校園合作 永續經營',
-        sub: '建立在地商家與學生的良性連結，共創美好的校園生活圈'
-    }
-];
+let HERO_DATA = []; // 將由資料庫動態產生成內容
 
 let allPartners = [];
 let currentPage = 0;
 const ITEMS_PER_PAGE = 6;
 let currentHeroSlide = 0;
+let heroInterval; // 儲存自動輪播計時器
 
 // --- 2. 初始化功能 ---
 
 function init() {
-    setupHeroCarousel();
-    fetchSheetData();
+    fetchData(); // 先抓取資料，資料內部會呼叫 setupHeroCarousel
     setupEventListeners();
 }
 
@@ -42,6 +28,12 @@ function init() {
 function setupHeroCarousel() {
     const container = document.getElementById('hero-slides-container');
     const dotsContainer = document.getElementById('hero-dots');
+
+    // 清除內容
+    container.innerHTML = '';
+    dotsContainer.innerHTML = '';
+
+    if (HERO_DATA.length === 0) return;
 
     HERO_DATA.forEach((data, index) => {
         // 建立 Slide
@@ -53,77 +45,123 @@ function setupHeroCarousel() {
         // 建立 Dot
         const dot = document.createElement('div');
         dot.className = `hero-dot ${index === 0 ? 'active' : ''}`;
-        dot.onclick = () => goToHeroSlide(index);
+        dot.onclick = () => goToHeroSlide(index, true); // 手動點擊
         dotsContainer.appendChild(dot);
     });
 
-    // 自動輪播
-    setInterval(() => {
-        nextHeroSlide();
-    }, 5000);
+    updateHeroDisplay();
+    startHeroRotation();
+}
+
+function startHeroRotation() {
+    if (heroInterval) clearInterval(heroInterval);
+    heroInterval = setInterval(() => {
+        nextHeroSlide(false); // 自動播放，不重設計時器
+    }, 3000);
 }
 
 function updateHeroDisplay() {
+    if (HERO_DATA.length === 0) return;
+
     const slides = document.querySelectorAll('.hero-slide');
     const dots = document.querySelectorAll('.hero-dot');
     const title = document.getElementById('hero-title');
     const sub = document.getElementById('hero-sub');
 
-    slides.forEach((s, i) => s.classList.toggle('active', i === currentHeroSlide));
-    dots.forEach((d, i) => d.classList.toggle('active', i === currentHeroSlide));
+    if (slides.length > 0) {
+        slides.forEach((s, i) => s.classList.toggle('active', i === currentHeroSlide));
+    }
+    if (dots.length > 0) {
+        dots.forEach((d, i) => d.classList.toggle('active', i === currentHeroSlide));
+    }
 
     title.textContent = HERO_DATA[currentHeroSlide].title;
     sub.textContent = HERO_DATA[currentHeroSlide].sub;
 }
 
-function nextHeroSlide() {
+function nextHeroSlide(manual = true) {
+    if (HERO_DATA.length === 0) return;
     currentHeroSlide = (currentHeroSlide + 1) % HERO_DATA.length;
     updateHeroDisplay();
+    if (manual) startHeroRotation();
 }
 
 function prevHeroSlide() {
+    if (HERO_DATA.length === 0) return;
     currentHeroSlide = (currentHeroSlide - 1 + HERO_DATA.length) % HERO_DATA.length;
     updateHeroDisplay();
+    startHeroRotation();
 }
 
-function goToHeroSlide(index) {
+function goToHeroSlide(index, manual = true) {
+    if (HERO_DATA.length === 0) return;
     currentHeroSlide = index;
     updateHeroDisplay();
+    if (manual) startHeroRotation();
 }
 
 // --- 4. 資料抓取與處理 ---
 
-function fetchSheetData() {
-    const script = document.createElement('script');
-    script.src = JSONP_URL;
-    script.onerror = () => {
-        const loading = document.getElementById('loading');
-        if (loading) loading.textContent = '連線失敗，請檢查網路狀態。';
-    };
-    document.body.appendChild(script);
+async function fetchData() {
+    const loading = document.getElementById('loading');
+    try {
+        const [sheetRes, mappingRes] = await Promise.all([
+            fetch(CSV_URL),
+            fetch(MAPPING_URL)
+        ]);
+
+        if (!sheetRes.ok || !mappingRes.ok) throw new Error('無法載入資料檔案');
+
+        const sheetText = await sheetRes.text();
+        const mappingText = await mappingRes.text();
+
+        processData(sheetText, mappingText);
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        if (loading) loading.textContent = '載入資料失敗，請確認檔案路徑是否正確。';
+    }
 }
 
-// 全域 JSONP 回呼
-window.handleSheetData = function (data) {
-    if (!data || !data.table || !data.table.rows) return;
-
-    const rows = data.table.rows;
-    allPartners = rows.map(row => {
-        const cells = row.c;
-        const getText = (idx) => (cells[idx] ? (cells[idx].f || cells[idx].v || '') : '');
+function processData(sheetText, mappingText) {
+    // 1. 解析店家資料
+    const sheetLines = sheetText.split(/\r?\n/).filter(line => line.trim() !== '');
+    const sheetRows = sheetLines.slice(1);
+    allPartners = sheetRows.map(line => {
+        const columns = line.split(',');
         return {
-            name: getText(0),         // 商家名稱
-            dealName: getText(1),     // 優惠名稱
-            dealContent: getText(2),  // 優惠內容
-            address: getText(3),      // 地址
-            contact: getText(4),      // 聯絡資訊
-            category: getText(5) || '精選商家'
+            name: columns[0] || '',
+            dealName: columns[1] || '',
+            dealContent: columns[2] || '',
+            address: columns[3] || '',
+            contact: columns[4] || '',
+            category: columns[5] || '精選商家'
         };
-    }).filter(p => p.name && p.name !== '商家名稱');
+    }).filter(p => p.name);
 
+    // 2. 解析圖片映射表並生成 HERO_DATA
+    const mappingLines = mappingText.split(/\r?\n/).filter(line => line.trim() !== '');
+    const mappingRows = mappingLines.slice(1);
+
+    HERO_DATA = mappingRows.map(line => {
+        const cols = line.split(',');
+        const shopName = cols[0];
+        const fileName = (cols[4] || '').trim();
+
+        if (!shopName || !fileName) return null;
+
+        const partner = allPartners.find(p => p.name === shopName);
+        return {
+            image: IMAGE_BASE_PATH + fileName,
+            title: shopName,
+            sub: partner ? partner.dealContent : '專屬學生優惠'
+        };
+    }).filter(item => item !== null);
+
+    // 3. 渲染
+    setupHeroCarousel();
     renderCurrentPage();
     renderLatestPartners();
-};
+}
 
 // --- 5. 渲染店家功能 ---
 
@@ -136,12 +174,19 @@ function renderCurrentPage() {
     const pageItems = allPartners.slice(start, end);
 
     pageItems.forEach(partner => {
+        // 從 HERO_DATA 或原始映射邏輯中找出該商家的圖片
+        const mapping = HERO_DATA.find(h => h.title === partner.name);
+        const imgUrl = mapping ? mapping.image : 'web_image/icon.jpg'; // 無圖片時使用 Logo 替代
+
         const card = document.createElement('div');
         card.className = 'partner-card';
         card.setAttribute('onclick', `updateMap('${partner.address}')`);
         card.innerHTML = `
       <div class="ticket-header">
         <div class="ticket-deal">${partner.dealName}</div>
+      </div>
+      <div class="card-img-container">
+        <img src="${imgUrl}" alt="${partner.name}">
       </div>
       <div class="ticket-divider"></div>
       <div class="ticket-body">
@@ -150,7 +195,7 @@ function renderCurrentPage() {
           <div class="partner-deal-content">${partner.dealContent}</div>
         </div>
         <div class="partner-details">
-          <div class="partner-loc">📍 ${partner.address.substring(0, 10)}...</div>
+          <div class="partner-loc">📍 ${partner.address.substring(0, 16)}${partner.address.length > 16 ? '...' : ''}</div>
           <div class="partner-contact">📞 ${partner.contact}</div>
         </div>
         <div class="ticket-hint">查看地圖 〉</div>
@@ -183,6 +228,17 @@ function renderLatestPartners() {
 // --- 6. 互動與導覽 ---
 
 function setupEventListeners() {
+    // 手機端選單控制
+    const menuToggle = document.getElementById('menu-toggle');
+    const mainNav = document.getElementById('main-nav');
+
+    if (menuToggle && mainNav) {
+        menuToggle.onclick = () => {
+            menuToggle.classList.toggle('active');
+            mainNav.classList.toggle('active');
+        };
+    }
+
     // Hero 控制
     document.getElementById('hero-prev').onclick = prevHeroSlide;
     document.getElementById('hero-next').onclick = nextHeroSlide;
@@ -207,6 +263,13 @@ function setupEventListeners() {
             const href = link.getAttribute('href');
             if (href.startsWith('#')) {
                 e.preventDefault();
+
+                // 點擊後關閉手機菜單
+                if (menuToggle && mainNav) {
+                    menuToggle.classList.remove('active');
+                    mainNav.classList.remove('active');
+                }
+
                 const target = document.querySelector(href);
                 if (target) {
                     target.scrollIntoView({ behavior: 'smooth' });

@@ -267,7 +267,7 @@ section {
 
 /* Coupon Ticket Style */
 .partner-card {
-  height: 280px;
+  height: 380px;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -284,22 +284,42 @@ section {
 }
 
 .ticket-header {
-  min-height: 80px;
+  height: 70px;
   background: var(--accent);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   color: #fff;
-  padding: 12px;
+  padding: 8px 12px;
   text-align: center;
   word-break: break-all;
+  flex-shrink: 0;
 }
 
 .ticket-deal {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   line-height: 1.2;
+}
+
+.card-img-container {
+  width: 100%;
+  height: 120px;
+  background: var(--surface-warm);
+  overflow: hidden;
+  border-bottom: 1px dashed var(--border);
+}
+
+.card-img-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s;
+}
+
+.partner-card:hover .card-img-container img {
+  transform: scale(1.05);
 }
 
 .ticket-deal-sub {
@@ -587,4 +607,207 @@ footer {
   color: var(--muted);
   width: 100%;
   grid-column: 1 / -1;
+}
+
+/* --- Menu Toggle (Hamburger) --- */
+.menu-toggle {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  z-index: 110;
+  padding: 5px;
+}
+
+.menu-toggle span {
+  display: block;
+  width: 28px;
+  height: 3px;
+  background: var(--ink);
+  border-radius: 2px;
+  transition: all 0.3s;
+}
+
+/* Mobile Menu Active State */
+.menu-toggle.active span:nth-child(1) {
+  transform: translateY(8px) rotate(45deg);
+}
+
+.menu-toggle.active span:nth-child(2) {
+  opacity: 0;
+}
+
+.menu-toggle.active span:nth-child(3) {
+  transform: translateY(-8px) rotate(-45deg);
+}
+
+/* --- Media Queries --- */
+
+/* Tablet & Smaller Desktop (1024px) */
+@media (max-width: 1024px) {
+  .partners-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Mobile (768px) */
+@media (max-width: 768px) {
+
+  /* Navigation */
+  .menu-toggle {
+    display: flex;
+  }
+
+  nav {
+    position: fixed;
+    top: 72px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--surface);
+    flex-direction: column;
+    align-items: center;
+    padding-top: 60px;
+    gap: 40px;
+    transform: translateX(100%);
+    transition: transform 0.4s ease-in-out;
+    z-index: 100;
+  }
+
+  nav.active {
+    transform: translateX(0);
+  }
+
+  nav a {
+    font-size: 24px;
+    font-weight: 700;
+  }
+
+  /* Hero Section */
+  .hero {
+    height: 360px;
+    padding-bottom: 40px;
+  }
+
+  .hero-title {
+    font-size: 32px;
+    letter-spacing: 1px;
+  }
+
+  .hero-sub {
+    font-size: 16px;
+  }
+
+  .hero-dots {
+    right: 20px;
+    bottom: 30px;
+  }
+
+  .hero-controls {
+    display: none;
+    /* 手機端主要靠滑動或點擊點點，隱藏大箭頭避免誤觸 */
+  }
+
+  /* Partners Section */
+  .partners-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    order: 1;
+  }
+
+  .partner-card {
+    height: 360px;
+    /* 寬度變窄，稍微調降高度 */
+  }
+
+  .nav-arrow {
+    position: static;
+    transform: none;
+    order: 2;
+    display: flex;
+    width: 100%;
+    max-width: 140px;
+    height: 48px;
+    margin: 0 auto;
+    justify-content: center;
+    align-items: center;
+  }
+
+  /* 讓兩個按鈕並排在下方 */
+  .partners-wrapper {
+    display: grid;
+    grid-template-areas:
+      "grid grid"
+      "prev next";
+    gap: 20px;
+  }
+
+  .partners-grid {
+    grid-area: grid;
+  }
+
+  .nav-arrow.prev {
+    grid-area: prev;
+    left: auto;
+  }
+
+  .nav-arrow.next {
+    grid-area: next;
+    right: auto;
+  }
+
+  /* 顯示分頁提示 */
+  .partners-wrapper::after {
+    content: "左右滑動查看分頁按鈕 〉";
+    display: none;
+  }
+
+  /* Map Container */
+  .map-container {
+    height: 300px;
+  }
+
+  /* Footer */
+  .footer-inner {
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+    text-align: center;
+  }
+
+  .footer-left {
+    flex-direction: column;
+  }
+
+  .footer-right {
+    align-items: center;
+  }
+
+  .footer-contacts {
+    align-items: center;
+  }
+}
+
+/* Small Mobile (480px) */
+@media (max-width: 480px) {
+  .hero-title {
+    font-size: 28px;
+  }
+
+  .partners-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .partner-card {
+    height: auto;
+    min-height: 380px;
+  }
+
+  .nav-arrow.prev {
+    left: -5px;
+  }
+
+  .nav-arrow.next {
+    right: -5px;
+  }
 }
