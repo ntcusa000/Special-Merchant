@@ -100,60 +100,122 @@ nav a:hover {
   color: var(--accent);
 }
 
-/* Hero Banner */
+/* Hero Banner (Carousel) */
 .hero {
   position: relative;
-  height: 280px;
+  height: 420px;
   overflow: hidden;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, var(--accent), #e7976c);
+  align-items: flex-end;
+  padding-bottom: 60px;
+  background: #2c2c2c;
   width: 100%;
+}
+
+#hero-slides-container {
+  position: absolute;
+  inset: 0;
+}
+
+.hero-slide {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+}
+
+.hero-slide.active {
+  opacity: 1;
 }
 
 .hero-overlay {
   position: absolute;
   inset: 0;
-  background: url('data:image/svg+xml;utf8,<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="2" cy="2" r="2" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
-  opacity: 0.5;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0) 60%);
 }
 
 .hero-content {
   position: relative;
   z-index: 10;
   width: 100%;
-  text-align: center;
 }
 
 .hero-badge {
   display: inline-block;
   padding: 6px 16px;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(198, 122, 82, 0.3);
   border-radius: 24px;
   color: #fff;
   font-size: 14px;
-  font-weight: 600;
   margin-bottom: 16px;
-  backdrop-filter: blur(4px);
 }
 
 .hero-title {
-  font-size: 48px;
-  font-weight: 900;
+  font-size: 56px;
+  font-weight: 800;
   color: #fff;
   margin: 0 0 12px 0;
   letter-spacing: 2px;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .hero-sub {
-  font-size: 18px;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.8);
   max-width: 600px;
-  margin: 0 auto;
-  font-weight: 500;
+}
+
+/* Hero Carousel Controls */
+.hero-controls {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  justify-content: space-between;
+  padding: 0 40px;
+  pointer-events: none;
+}
+
+.hero-arrow {
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.2s;
+}
+
+.hero-arrow:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.hero-dots {
+  position: absolute;
+  right: 80px;
+  bottom: 60px;
+  display: flex;
+  gap: 8px;
+}
+
+.hero-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+}
+
+.hero-dot.active {
+  background: var(--accent);
 }
 
 /* Sections */
@@ -203,334 +265,157 @@ section {
   padding: 10px 0;
 }
 
-/* Coupon Ticket Style (Text-only Design) */
+/* Coupon Ticket Style */
 .partner-card {
-  height: 240px; /* 進一步縮小卡片高度 */
+  height: 380px;
   background: #fff;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   transition: transform 0.2s, box-shadow 0.2s;
   cursor: pointer;
-  position: relative;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-}
-
-.partner-card::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: var(--accent);
-  transition: height 0.2s;
 }
 
 .partner-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 12px 30px rgba(198, 122, 82, 0.15);
-}
-
-.partner-card:hover::after {
-  height: 6px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
 }
 
 .ticket-header {
-  padding: 30px 20px 20px;
-  background: linear-gradient(180deg, var(--surface-warm) 0%, #fff 100%);
+  height: 70px;
+  background: var(--accent);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  color: #fff;
+  padding: 8px 12px;
   text-align: center;
+  word-break: break-all;
   flex-shrink: 0;
-  border-bottom: 2px dashed #E5E2DC;
-  position: relative;
-}
-
-/* 營造優惠券的凹槽效果 */
-.ticket-header::after,
-.ticket-header::before {
-  content: "";
-  position: absolute;
-  bottom: -10px;
-  width: 20px;
-  height: 20px;
-  background: var(--bg);
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  z-index: 5;
-}
-
-.ticket-header::before {
-  left: -11px;
-  clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
-}
-
-.ticket-header::after {
-  right: -11px;
-  clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);
 }
 
 .ticket-deal {
-  font-size: 24px;
-  font-weight: 900;
-  color: var(--accent);
+  font-size: 16px;
+  font-weight: 800;
   line-height: 1.2;
-  margin-bottom: 8px;
-  text-shadow: 1px 1px 0 rgba(198, 122, 82, 0.1);
 }
 
-.ticket-deal-name {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ink);
-  background: var(--accent-soft);
-  padding: 4px 12px;
-  border-radius: 12px;
-  display: inline-block;
+.card-img-container {
+  width: 100%;
+  height: 120px;
+  background: var(--surface-warm);
+  overflow: hidden;
+  border-bottom: 1px dashed var(--border);
+}
+
+.card-img-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s;
+}
+
+.partner-card:hover .card-img-container img {
+  transform: scale(1.05);
+}
+
+.ticket-deal-sub {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.9;
+  margin-top: 4px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ticket-divider {
+  height: 1px;
+  border-top: 1px dashed var(--border);
+  margin: 0 12px;
+  position: relative;
+}
+
+/* Ticket Side Notches */
+.ticket-divider::before,
+.ticket-divider::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: var(--bg);
+  border-radius: 50%;
+  top: -6px;
+  z-index: 5;
+}
+
+.ticket-divider::before {
+  left: -19px;
+  border-right: 1px solid var(--border);
+}
+
+.ticket-divider::after {
+  right: -19px;
+  border-left: 1px solid var(--border);
 }
 
 .ticket-body {
-  padding: 20px;
+  padding: 16px;
   flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  background: #fff;
 }
 
 .partner-name {
   font-size: 16px;
   font-weight: 800;
-  color: var(--ink);
-  line-height: 1.3;
-  margin-bottom: 8px;
-  text-align: center;
+  color: var(--accent);
+  line-height: 1.2;
+  margin-bottom: 6px;
 }
 
 .partner-deal-content {
   font-size: 13px;
   font-weight: 500;
-  color: var(--secondary);
-  line-height: 1.5;
-  text-align: center;
-  display: -webkit-box;
-  -webkit-line-clamp: 1; /* 改為一行，讓外側卡片看起來極簡 */
-  line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  color: var(--ink);
+  line-height: 1.4;
 }
 
 .partner-details {
   margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding-bottom: 0;
-  border-top: 1px solid var(--surface-warm);
-  padding-top: 12px;
+  gap: 2px;
+  padding-bottom: 8px;
 }
 
 .partner-loc,
 .partner-contact {
-  font-size: 12px;
-  color: var(--muted);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* --- Modal Styles --- */
-.modal {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-  padding: 20px;
-}
-
-.modal.active {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.modal-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-}
-
-.modal-content {
-  position: relative;
-  width: 100%;
-  max-width: 500px;
-  background: #fff;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-  transform: translateY(20px);
-  transition: transform 0.3s ease;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.modal.active .modal-content {
-  transform: translateY(0);
-}
-
-.modal-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 32px;
-  height: 32px;
-  background: rgba(255, 255, 255, 0.9);
-  border: none;
-  border-radius: 16px;
-  font-size: 24px;
-  line-height: 1;
-  color: var(--ink);
-  cursor: pointer;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: background 0.2s;
-}
-
-.modal-close:hover {
-  background: #fff;
-  color: var(--accent);
-}
-
-.modal-img-container {
-  width: 100%;
-  height: 200px;
-  background: var(--surface-warm);
-}
-
-.modal-img-container img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  padding: 24px; /* Default for icon */
-}
-
-/* If true image is loaded, we might switch to cover via JS */
-.modal-img-container img.real-img {
-  object-fit: cover;
-  padding: 0;
-}
-
-.modal-body {
-  padding: 24px;
-  overflow-y: auto;
-}
-
-.modal-title {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--ink);
-  margin: 12px 0 16px;
-}
-
-.modal-divider {
-  height: 1px;
-  background: var(--border);
-  margin: 16px 0;
-}
-
-.modal-section-title {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 11px;
   color: var(--secondary);
-  margin: 0 0 8px 0;
-  text-transform: uppercase;
-  letter-spacing: 1px;
 }
 
-.modal-desc {
-  font-size: 16px;
-  color: var(--ink);
-  line-height: 1.6;
-  margin: 0 0 24px 0;
-  white-space: pre-line;
-}
-
-.modal-info-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 24px;
-  background: var(--surface-warm);
-  padding: 16px;
-  border-radius: 12px;
-}
-
-.modal-info-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 15px;
-  color: var(--ink);
-}
-
-.info-icon {
-  font-size: 16px;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: auto;
-}
-
-.action-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 12px;
-  font-size: 15px;
+.ticket-hint {
+  width: 100%;
+  padding: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 6px;
+  font-size: 13px;
   font-weight: 700;
-  transition: opacity 0.2s, transform 0.1s;
+  text-align: center;
 }
 
-.action-btn:active {
-  transform: scale(0.98);
-}
-
-.map-btn {
-  background: var(--accent); /* 與原網站主色一致 */
+.partner-card:hover .ticket-hint {
+  background: var(--accent);
   color: #fff;
-}
-
-.map-btn:hover {
-  opacity: 0.9;
-}
-
-.phone-btn {
-  background: var(--ink); /* 與原網站深色一致 */
-  color: #fff;
-  display: none; /* 電腦版預設隱藏 */
-}
-
-.phone-btn:hover {
-  opacity: 0.9;
 }
 
 /* Pagination Arrows */
@@ -813,8 +698,14 @@ footer {
     font-size: 16px;
   }
 
+  .hero-dots {
+    right: 20px;
+    bottom: 30px;
+  }
+
   .hero-controls {
     display: none;
+    /* 手機端主要靠滑動或點擊點點，隱藏大箭頭避免誤觸 */
   }
 
   /* Partners Section */
@@ -825,7 +716,8 @@ footer {
   }
 
   .partner-card {
-    height: 260px;
+    height: 360px;
+    /* 寬度變窄，稍微調降高度 */
   }
 
   .nav-arrow {
@@ -873,11 +765,6 @@ footer {
   /* Map Container */
   .map-container {
     height: 300px;
-  }
-
-  /* 顯示手機版專用按鈕 */
-  .phone-btn {
-    display: flex;
   }
 
   /* Footer */

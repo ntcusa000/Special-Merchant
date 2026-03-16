@@ -8,37 +8,112 @@ const CSV_URL = 'data/sheet.csv';
 const MAPPING_URL = 'data/mapping.csv';
 const IMAGE_BASE_PATH = 'data/images/';
 
-let HERO_DATA = []; // 保存映射與圖片資料以供 Modal 使用
+let HERO_DATA = []; // 將由資料庫動態產生成內容
 
 let allPartners = [];
 let currentPage = 0;
 const ITEMS_PER_PAGE = 6;
+let currentHeroSlide = 0;
+let heroInterval; // 儲存自動輪播計時器
 
 // --- 2. 初始化功能 ---
 
 function init() {
-    fetchData(); // 先抓取資料
+    fetchData(); // 先抓取資料，資料內部會呼叫 setupHeroCarousel
     setupEventListeners();
 }
 
-// --- 3. 資料抓取與處理 ---
+// --- 3. Hero 輪播邏輯 ---
+
+function setupHeroCarousel() {
+    const container = document.getElementById('hero-slides-container');
+    const dotsContainer = document.getElementById('hero-dots');
+
+    // 清除內容
+    container.innerHTML = '';
+    dotsContainer.innerHTML = '';
+
+    if (HERO_DATA.length === 0) return;
+
+    HERO_DATA.forEach((data, index) => {
+        // 建立 Slide
+        const slide = document.createElement('div');
+        slide.className = `hero-slide ${index === 0 ? 'active' : ''}`;
+        slide.style.backgroundImage = `url('${data.image}')`;
+        container.appendChild(slide);
+
+        // 建立 Dot
+        const dot = document.createElement('div');
+        dot.className = `hero-dot ${index === 0 ? 'active' : ''}`;
+        dot.onclick = () => goToHeroSlide(index, true); // 手動點擊
+        dotsContainer.appendChild(dot);
+    });
+
+    updateHeroDisplay();
+    startHeroRotation();
+}
+
+function startHeroRotation() {
+    if (heroInterval) clearInterval(heroInterval);
+    heroInterval = setInterval(() => {
+        nextHeroSlide(false); // 自動播放，不重設計時器
+    }, 3000);
+}
+
+function updateHeroDisplay() {
+    if (HERO_DATA.length === 0) return;
+
+    const slides = document.querySelectorAll('.hero-slide');
+    const dots = document.querySelectorAll('.hero-dot');
+    const title = document.getElementById('hero-title');
+    const sub = document.getElementById('hero-sub');
+
+    if (slides.length > 0) {
+        slides.forEach((s, i) => s.classList.toggle('active', i === currentHeroSlide));
+    }
+    if (dots.length > 0) {
+        dots.forEach((d, i) => d.classList.toggle('active', i === currentHeroSlide));
+    }
+
+    title.textContent = HERO_DATA[currentHeroSlide].title;
+    sub.textContent = HERO_DATA[currentHeroSlide].sub;
+}
+
+function nextHeroSlide(manual = true) {
+    if (HERO_DATA.length === 0) return;
+    currentHeroSlide = (currentHeroSlide + 1) % HERO_DATA.length;
+    updateHeroDisplay();
+    if (manual) startHeroRotation();
+}
+
+function prevHeroSlide() {
+    if (HERO_DATA.length === 0) return;
+    currentHeroSlide = (currentHeroSlide - 1 + HERO_DATA.length) % HERO_DATA.length;
+    updateHeroDisplay();
+    startHeroRotation();
+}
+
+function goToHeroSlide(index, manual = true) {
+    if (HERO_DATA.length === 0) return;
+    currentHeroSlide = index;
+    updateHeroDisplay();
+    if (manual) startHeroRotation();
+}
+
+// --- 4. 資料抓取與處理 ---
 
 async function fetchData() {
     const loading = document.getElementById('loading');
     try {
-        // 並行取得 sheet.csv 與 mapping.csv（允許 mapping 不存在）
         const [sheetRes, mappingRes] = await Promise.all([
             fetch(CSV_URL),
-            fetch(MAPPING_URL).catch(() => null)
+            fetch(MAPPING_URL)
         ]);
 
-        if (!sheetRes.ok) throw new Error('無法載入主要資料檔案');
+        if (!sheetRes.ok || !mappingRes.ok) throw new Error('無法載入資料檔案');
 
         const sheetText = await sheetRes.text();
-        let mappingText = '';
-        if (mappingRes && mappingRes.ok) {
-            mappingText = await mappingRes.text();
-        }
+        const mappingText = await mappingRes.text();
 
         processData(sheetText, mappingText);
     } catch (error) {
@@ -63,33 +138,32 @@ function processData(sheetText, mappingText) {
         };
     }).filter(p => p.name);
 
-    // 2. 解析圖片映射表並生成 HERO_DATA (用於 Modal 顯示圖)
-    if (mappingText) {
-        const mappingLines = mappingText.split(/\r?\n/).filter(line => line.trim() !== '');
-        const mappingRows = mappingLines.slice(1);
+    // 2. 解析圖片映射表並生成 HERO_DATA
+    const mappingLines = mappingText.split(/\r?\n/).filter(line => line.trim() !== '');
+    const mappingRows = mappingLines.slice(1);
 
-        HERO_DATA = mappingRows.map(line => {
-            const cols = line.split(',');
-            const shopName = cols[0];
-            const fileName = (cols[4] || '').trim();
+    HERO_DATA = mappingRows.map(line => {
+        const cols = line.split(',');
+        const shopName = cols[0];
+        const fileName = (cols[4] || '').trim();
 
-            if (!shopName || !fileName) return null;
+        if (!shopName || !fileName) return null;
 
-            return {
-                image: IMAGE_BASE_PATH + fileName,
-                title: shopName
-            };
-        }).filter(item => item !== null);
-    } else {
-        HERO_DATA = [];
-    }
+        const partner = allPartners.find(p => p.name === shopName);
+        return {
+            image: IMAGE_BASE_PATH + fileName,
+            title: shopName,
+            sub: partner ? partner.dealContent : '專屬學生優惠'
+        };
+    }).filter(item => item !== null);
 
     // 3. 渲染
+    setupHeroCarousel();
     renderCurrentPage();
     renderLatestPartners();
 }
 
-// --- 4. 渲染店家功能 ---
+// --- 5. 渲染店家功能 ---
 
 function renderCurrentPage() {
     const grid = document.getElementById('partners-grid');
@@ -100,25 +174,31 @@ function renderCurrentPage() {
     const pageItems = allPartners.slice(start, end);
 
     pageItems.forEach(partner => {
+        // 從 HERO_DATA 或原始映射邏輯中找出該商家的圖片
+        const mapping = HERO_DATA.find(h => h.title === partner.name);
+        const imgUrl = mapping ? mapping.image : 'web_image/icon.jpg'; // 無圖片時使用 Logo 替代
+
         const card = document.createElement('div');
         card.className = 'partner-card';
-        // 改為開啟 Modal 且傳遞名稱
-        // 將名稱編碼，避免 JSON.stringify 中含有引號造成語法錯誤
-        const safeName = partner.name.replace(/'/g, "\\'");
-        card.setAttribute('onclick', `openModal('${safeName}')`);
+        card.setAttribute('onclick', `updateMap('${partner.address}')`);
         card.innerHTML = `
       <div class="ticket-header">
         <div class="ticket-deal">${partner.dealName}</div>
-        <div class="ticket-deal-name">${partner.name}</div>
       </div>
+      <div class="card-img-container">
+        <img src="${imgUrl}" alt="${partner.name}">
+      </div>
+      <div class="ticket-divider"></div>
       <div class="ticket-body">
         <div class="info-top">
+          <div class="partner-name">${partner.name}</div>
           <div class="partner-deal-content">${partner.dealContent}</div>
         </div>
         <div class="partner-details">
           <div class="partner-loc">📍 ${partner.address.substring(0, 16)}${partner.address.length > 16 ? '...' : ''}</div>
           <div class="partner-contact">📞 ${partner.contact}</div>
         </div>
+        <div class="ticket-hint">查看地圖 〉</div>
       </div>
     `;
         grid.appendChild(card);
@@ -145,7 +225,7 @@ function renderLatestPartners() {
     });
 }
 
-// --- 5. 互動與導覽 ---
+// --- 6. 互動與導覽 ---
 
 function setupEventListeners() {
     // 手機端選單控制
@@ -158,6 +238,10 @@ function setupEventListeners() {
             mainNav.classList.toggle('active');
         };
     }
+
+    // Hero 控制
+    document.getElementById('hero-prev').onclick = prevHeroSlide;
+    document.getElementById('hero-next').onclick = nextHeroSlide;
 
     // 分頁控制
     document.getElementById('page-prev').onclick = () => {
@@ -198,62 +282,14 @@ function setupEventListeners() {
     });
 }
 
-// --- Modal 功能 ---
+function updateMap(address) {
+    const mapFrame = document.getElementById('google-map');
+    const query = encodeURIComponent(address);
+    mapFrame.src = `https://maps.google.com/maps?q=${query}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
 
-function openModal(partnerName) {
-    const partner = allPartners.find(p => p.name === partnerName);
-    if (!partner) return;
-
-    // 尋找圖片映射
-    const mapping = HERO_DATA.find(h => h.title === partner.name);
-    const imgUrl = mapping ? mapping.image : 'web_image/icon.jpg';
-    
-    // 獲取 DOM 元素
-    const modal = document.getElementById('partner-modal');
-    const modalImg = document.getElementById('modal-img');
-    const modalBadge = document.getElementById('modal-badge');
-    const modalTitle = document.getElementById('modal-title');
-    const modalDesc = document.getElementById('modal-desc');
-    const modalAddress = document.getElementById('modal-address');
-    const modalPhone = document.getElementById('modal-phone');
-    const mapBtn = document.getElementById('modal-map-btn');
-    const phoneBtn = document.getElementById('modal-phone-btn');
-
-    // 填入資料
-    modalImg.src = imgUrl;
-    if (mapping) {
-        modalImg.classList.add('real-img');
-    } else {
-        modalImg.classList.remove('real-img');
-    }
-
-    modalBadge.textContent = partner.dealName;
-    modalTitle.textContent = partner.name;
-    modalDesc.textContent = partner.dealContent;
-    modalAddress.textContent = partner.address;
-    modalPhone.textContent = partner.contact;
-
-    // 設定按鈕連結
-    const query = encodeURIComponent(partner.address);
-    mapBtn.href = `https://www.google.com/maps/search/?api=1&query=${query}`;
-    
-    // 清理電話號碼格式
-    const cleanPhone = partner.contact.replace(/[^\d+]/g, '');
-    phoneBtn.href = `tel:${cleanPhone}`;
-
-    // 顯示 Modal
-    modal.classList.add('active');
-    document.body.style.overflow = 'hidden'; // 防止背景捲動
+    // 捲動到地圖
+    mapFrame.parentElement.scrollIntoView({ behavior: 'smooth' });
 }
-
-function closeModal() {
-    const modal = document.getElementById('partner-modal');
-    modal.classList.remove('active');
-    document.body.style.overflow = ''; // 恢復背景捲動
-}
-
-// 移除原本的全域的 updateMap 函式，因為改成跳轉/開新地圖
-// function updateMap(address) { ... }
 
 // --- 啟動 ---
 init();

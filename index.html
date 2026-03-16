@@ -35,15 +35,25 @@
         </div>
     </header>
 
-    <!-- Hero Banner -->
+    <!-- Hero Carousel -->
     <div class="hero" id="home">
+        <div id="hero-slides-container">
+            <!-- Slides will be injected by JS -->
+        </div>
         <div class="hero-overlay"></div>
         <div class="container hero-content">
             <div id="hero-text-area">
-                <span class="hero-badge">專屬好康</span>
                 <h1 class="hero-title" id="hero-title">專屬學生的優惠特約</h1>
                 <p class="hero-sub" id="hero-sub">探索校園周邊精選合作店家，享受學生專屬折扣與好康</p>
             </div>
+        </div>
+
+        <div class="hero-controls">
+            <div class="hero-arrow" id="hero-prev">❮</div>
+            <div class="hero-arrow" id="hero-next">❯</div>
+        </div>
+        <div class="hero-dots" id="hero-dots">
+            <!-- Dots injected by JS -->
         </div>
     </div>
 
@@ -96,44 +106,6 @@
             </div>
         </section>
     </main>
-
-    <!-- Detailed Modal -->
-    <div id="partner-modal" class="modal">
-        <div class="modal-overlay" onclick="closeModal()"></div>
-        <div class="modal-content">
-            <button class="modal-close" onclick="closeModal()">×</button>
-            <div class="modal-img-container">
-                <img id="modal-img" src="web_image/icon.jpg" alt="Partner Image">
-            </div>
-            <div class="modal-body">
-                <span id="modal-badge" class="ticket-deal-name">優惠名稱</span>
-                <h2 id="modal-title" class="modal-title">店家名稱</h2>
-                <div class="modal-divider"></div>
-                <h3 class="modal-section-title">優惠內容</h3>
-                <p id="modal-desc" class="modal-desc">完整優惠內容將顯示在這裡...</p>
-                <div class="modal-info-group">
-                    <div class="modal-info-item">
-                        <span class="info-icon">📍</span>
-                        <span id="modal-address">詳細地址</span>
-                    </div>
-                    <div class="modal-info-item">
-                        <span class="info-icon">📞</span>
-                        <span id="modal-phone">聯絡電話</span>
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <a id="modal-map-btn" href="#" target="_blank" class="action-btn map-btn">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                        開啟導航
-                    </a>
-                    <a id="modal-phone-btn" href="#" class="action-btn phone-btn">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                        撥打電話
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Footer -->
     <footer>
